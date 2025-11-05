@@ -104,6 +104,27 @@ method.MAIVE <- function(method_name, data, settings = NULL) {
   study_id <- data[["study_id"]]
 
   # Input validation
+
+  # Check for required columns first (before checking content)
+  if (is.null(yi) || length(yi) == 0) {
+    stop("Effect sizes (yi) are required for MAIVE. ",
+         "The data must include a 'yi' column with effect size estimates.",
+         call. = FALSE)
+  }
+
+  if (is.null(sei) || length(sei) == 0) {
+    stop("Standard errors (sei) are required for MAIVE. ",
+         "The data must include a 'sei' column with standard errors.",
+         call. = FALSE)
+  }
+
+  if (is.null(ni) || length(ni) == 0) {
+    stop("Sample sizes (ni) are required for MAIVE. ",
+         "The data must include a 'ni' column with positive sample sizes. ",
+         "MAIVE uses inverse sample sizes (1/N) as instruments for variance.",
+         call. = FALSE)
+  }
+
   if (length(yi) < 3) {
     stop("MAIVE requires at least 3 effect size estimates for reliable estimation",
          call. = FALSE)
