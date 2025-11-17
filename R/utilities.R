@@ -63,32 +63,40 @@ assign("resources_directory",  NULL, envir = PublicationBiasBenchmark.private)
 assign("prompt_for_download",  TRUE, envir = PublicationBiasBenchmark.private)
 
 
-.onLoad <- function(libname, pkgname){
+.onLoad   <- function(libname, pkgname){
 
   # locate the pre-downloaded results
   resources <- Sys.getenv("PublicationBiasBenchmark_RESOURCES")
   if (resources != "")
     PublicationBiasBenchmark.options(resources_directory = resources)
 
-  # set-up OSF PAT  
+  # set-up OSF PAT
   try(suppressWarnings(suppressMessages(osfr::osf_auth())))
 }
-
 .onAttach <- function(libname, pkgname){
 
   resources <- PublicationBiasBenchmark.get_option("resources_directory")
   if (is.null(resources)) {
     packageStartupMessage(paste0(
       "This package works with precomputed data, results, and measures.\n",
-      "Specify a location where those resources should be saved to and accessed from by using `PublicationBiasBenchmark.options(resources_directory = `/path/`)` ", 
+      "Specify a location where those resources should be stored and accessed from by using `PublicationBiasBenchmark.options(resources_directory = '/path/')` ", 
       "or the `PublicationBiasBenchmark_RESOURCES` environmental variable."
     ))        
   } else {
     packageStartupMessage(sprintf(paste0(
-      "Data, results, and measures will be saved to and accessed from '%1$s'.\n", 
-      "To change the default location, use `PublicationBiasBenchmark.options(resources_directory = `/path/`)` ",
+      "Data, results, and measures will be stored and accessed from '%1$s'.\n", 
+      "To change the default location, use `PublicationBiasBenchmark.options(resources_directory = '/path/')` ",
       "or the `PublicationBiasBenchmark_RESOURCES` environmental variable."),
       PublicationBiasBenchmark.private$resources_directory
     ))    
   }
+}
+
+.get_path <- function() {
+  
+  path <- PublicationBiasBenchmark.get_option("resources_directory")
+  if (is.null(path))
+    stop("The resources location needs to be specified via the `PublicationBiasBenchmark.options(resources_directory = '/path/')` function.", call. = FALSE)
+  
+  return(path)
 }
