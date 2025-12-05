@@ -98,7 +98,7 @@ compute_single_measure <- function(dgm_name, measure_name, method, method_settin
   file_name <- paste0(measure_name, if (is.null(method_replacements) || length(method_replacements) == 0) ".csv" else "-replacement.csv")
 
   path <- .get_path()
-  
+
   output_folder <- file.path(path, dgm_name, "measures")
   output_file   <- file.path(output_folder, file_name)
 
@@ -584,44 +584,28 @@ compute_measures <- function(dgm_name, method, method_setting, measures = NULL, 
 
   # Define all available measures if not specified
   if (is.null(measures))
-    measures <- c("bias", "relative_bias", "mse", "rmse", "empirical_variance",
-                  "empirical_se", "coverage", "power", "mean_ci_width", "interval_score", "convergence",
-                  "positive_likelihood_ratio", "negative_likelihood_ratio")
-
-  # Define measure functions
-  measure_functions <- list(
-    bias                        = list(fun = bias,                      mcse_fun = bias_mcse),
-    relative_bias               = list(fun = relative_bias,             mcse_fun = relative_bias_mcse),
-    mse                         = list(fun = mse,                       mcse_fun = mse_mcse),
-    rmse                        = list(fun = rmse,                      mcse_fun = rmse_mcse),
-    empirical_variance          = list(fun = empirical_variance,        mcse_fun = empirical_variance_mcse),
-    empirical_se                = list(fun = empirical_se,              mcse_fun = empirical_se_mcse),
-    coverage                    = list(fun = coverage,                  mcse_fun = coverage_mcse),
-    mean_ci_width               = list(fun = mean_ci_width,             mcse_fun = mean_ci_width_mcse),
-    interval_score              = list(fun = interval_score,            mcse_fun = interval_score_mcse),
-    power                       = list(fun = power,                     mcse_fun = power_mcse),
-    convergence                 = list(fun = power,                     mcse_fun = power_mcse),
-    positive_likelihood_ratio   = list(fun = positive_likelihood_ratio, mcse_fun = positive_likelihood_ratio_mcse),
-    negative_likelihood_ratio   = list(fun = negative_likelihood_ratio, mcse_fun = negative_likelihood_ratio_mcse)
-  )
+    measures <- measure()
 
   # Compute each measure
-  for (measure in measures) {
+  for (measure_name in measures) {
 
-    if (!measure %in% names(measure_functions))
-      stop(paste0("Unknown measure: ", measure, ". Skipping."))
+    measure_fun      <- try(measure(measure_name), silent = TRUE)
+    measure_mcse_fun <- try(measure_mcse(measure_name), silent = TRUE)
+
+    if (inherits(measure_fun, "try-error") || inherits(measure_mcse_fun, "try-error"))
+      stop(paste0("Unknown measure: ", measure_name), call. = FALSE)
 
     if (verbose)
-      message("Computing ", measure, "...")
+      message("Computing ", measure_name, "...")
 
     compute_single_measure(
       dgm_name                  = dgm_name,
-      measure_name              = measure,
+      measure_name              = measure_name,
       method                    = method,
       method_setting            = method_setting,
       conditions                = conditions,
-      measure_fun               = measure_functions[[measure]]$fun,
-      measure_mcse_fun          = measure_functions[[measure]]$mcse_fun,
+      measure_fun               = measure_fun,
+      measure_mcse_fun          = measure_mcse_fun,
       power_test_type           = power_test_type,
       power_threshold_p_value   = power_threshold_p_value,
       power_threshold_bayes_factor = power_threshold_bayes_factor,
@@ -638,7 +622,7 @@ compute_measures <- function(dgm_name, method, method_setting, measures = NULL, 
     )
 
     if (verbose)
-      message("Saved ", measure)
+      message("Saved ", measure_name)
   }
 
   return(invisible(TRUE))

@@ -367,3 +367,133 @@ interval_score_mcse <- function(ci_lower, ci_upper, theta, alpha = 0.05) {
 
   mean_generic_statistic_mcse(score)
 }
+
+#' @title Get performance measure function
+#'
+#' @description
+#' Returns the function for computing a specific performance measure.
+#' Can also be used to list available measures.
+#'
+#' @param measure Character string specifying the measure name. If missing, returns a vector of all available measures.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return A function that computes the requested measure, or a character vector of measure names.
+#' @export
+measure <- function(measure, ...) {
+  if (missing(measure)) {
+    m <- as.character(utils::methods("measure"))
+    m <- gsub("^measure\\.", "", m)
+    return(m[m != "default"])
+  }
+
+  if (missing(...)) {
+    if (is.character(measure)) {
+      return(utils::getS3method("measure", measure)())
+    }
+  }
+
+  if (is.character(measure)) {
+    # Create a copy to avoid modifying the original object if it's not just a string
+    m <- measure
+    class(m) <- measure
+    UseMethod("measure", m)
+  } else {
+    UseMethod("measure")
+  }
+}
+
+#' @export
+measure.bias <- function(measure, ...) bias
+#' @export
+measure.relative_bias <- function(measure, ...) relative_bias
+#' @export
+measure.mse <- function(measure, ...) mse
+#' @export
+measure.rmse <- function(measure, ...) rmse
+#' @export
+measure.empirical_variance <- function(measure, ...) empirical_variance
+#' @export
+measure.empirical_se <- function(measure, ...) empirical_se
+#' @export
+measure.coverage <- function(measure, ...) coverage
+#' @export
+measure.power <- function(measure, ...) power
+#' @export
+measure.mean_ci_width <- function(measure, ...) mean_ci_width
+#' @export
+measure.interval_score <- function(measure, ...) interval_score
+#' @export
+measure.convergence <- function(measure, ...) power
+#' @export
+measure.positive_likelihood_ratio <- function(measure, ...) positive_likelihood_ratio
+#' @export
+measure.negative_likelihood_ratio <- function(measure, ...) negative_likelihood_ratio
+#' @export
+measure.default <- function(measure, ...) {
+  stop(paste0("Unknown measure: ", measure), call. = FALSE)
+}
+
+#' @title Get performance measure MCSE function
+#'
+#' @description
+#' Returns the function for computing the Monte Carlo Standard Error (MCSE) of a specific performance measure.
+#' Can also be used to list available measures with MCSE functions.
+#'
+#' @param measure Character string specifying the measure name. If missing, returns a vector of all available measures.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return A function that computes the MCSE of the requested measure, or a character vector of measure names.
+#' @export
+measure_mcse <- function(measure, ...) {
+  if (missing(measure)) {
+    m <- as.character(utils::methods("measure_mcse"))
+    m <- gsub("^measure_mcse\\.", "", m)
+    return(m[m != "default"])
+  }
+
+  if (missing(...)) {
+    if (is.character(measure)) {
+      return(utils::getS3method("measure_mcse", measure)())
+    }
+  }
+
+  if (is.character(measure)) {
+    # Create a copy to avoid modifying the original object if it's not just a string
+    m <- measure
+    class(m) <- measure
+    UseMethod("measure_mcse", m)
+  } else {
+    UseMethod("measure_mcse")
+  }
+}
+
+#' @export
+measure_mcse.bias <- function(measure, ...) bias_mcse
+#' @export
+measure_mcse.relative_bias <- function(measure, ...) relative_bias_mcse
+#' @export
+measure_mcse.mse <- function(measure, ...) mse_mcse
+#' @export
+measure_mcse.rmse <- function(measure, ...) rmse_mcse
+#' @export
+measure_mcse.empirical_variance <- function(measure, ...) empirical_variance_mcse
+#' @export
+measure_mcse.empirical_se <- function(measure, ...) empirical_se_mcse
+#' @export
+measure_mcse.coverage <- function(measure, ...) coverage_mcse
+#' @export
+measure_mcse.power <- function(measure, ...) power_mcse
+#' @export
+measure_mcse.mean_ci_width <- function(measure, ...) mean_ci_width_mcse
+#' @export
+measure_mcse.interval_score <- function(measure, ...) interval_score_mcse
+#' @export
+measure_mcse.convergence <- function(measure, ...) power_mcse
+#' @export
+measure_mcse.positive_likelihood_ratio <- function(measure, ...) positive_likelihood_ratio_mcse
+#' @export
+measure_mcse.negative_likelihood_ratio <- function(measure, ...) negative_likelihood_ratio_mcse
+#' @export
+measure_mcse.default <- function(measure, ...) {
+  stop(paste0("Unknown measure: ", measure), call. = FALSE)
+}
