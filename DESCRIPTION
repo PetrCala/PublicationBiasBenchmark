@@ -44,7 +44,7 @@ Imports:
     lmtest,
     puniform,
     Rdpack,
-    MAIVE
+    MAIVE (== 0.1.10)
 Suggests:
     RoBMA,
     testthat (>= 3.0.0),
@@ -58,8 +58,6 @@ Suggests:
     rprojroot,
     desc
 RdMacros: Rdpack
-Remotes:
-    PetrCala/MAIVE
 URL: https://github.com/FBartos/PublicationBiasBenchmark, https://fbartos.github.io/PublicationBiasBenchmark/
 BugReports: https://github.com/FBartos/PublicationBiasBenchmark/issues
 VignetteBuilder: knitr
