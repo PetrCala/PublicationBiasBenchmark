@@ -4,7 +4,7 @@
 \alias{method.MAIVE}
 \title{MAIVE: Meta-Analysis Instrumental Variable Estimator}
 \usage{
-\method{method}{MAIVE}(method_name, data, settings = NULL)
+\method{method}{MAIVE}(method_name, data, settings)
 }
 \arguments{
 \item{method_name}{Method identifier (automatically passed by framework)}

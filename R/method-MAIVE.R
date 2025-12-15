@@ -91,7 +91,7 @@
 #' }
 #'
 #' @export
-method.MAIVE <- function(method_name, data, settings = NULL) {
+method.MAIVE <- function(method_name, data, settings) {
 
   # ============================================================================
   # SECTION 1: INPUT EXTRACTION AND VALIDATION
