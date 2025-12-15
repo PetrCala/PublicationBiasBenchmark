@@ -1,5 +1,7 @@
 #' @title MAIVE: Meta-Analysis Instrumental Variable Estimator
 #'
+#' @author Petr Čala \email{cala.p@@seznam.cz}
+#'
 #' @description
 #' Implements the MAIVE method for publication bias correction using
 #' instrumental variable estimation with variance instrumentation. MAIVE
@@ -33,7 +35,7 @@
 #'     \item{note}{Error messages if any}
 #'     \item{first_stage_f}{First-stage F-statistic for instrument strength}
 #'     \item{hausman_stat}{Hausman test statistic comparing IV vs OLS}
-#'     \item{pbias_pval}{P-value for publication bias test}
+#'     \item{bias_p_value}{P-value for publication bias test}
 #'     \item{used_ar_ci}{Whether Anderson-Rubin CI was used}
 #'     \item{ar_ci_available}{Whether AR CI was computed successfully}
 #'   }
@@ -416,7 +418,7 @@ method.MAIVE <- function(method_name, data, settings = NULL) {
     # Extra columns (5 total - declared in method_extra_columns.MAIVE)
     first_stage_f = f_test,
     hausman_stat = hausman_stat,
-    pbias_pval = pbias_pval,
+    bias_p_value = pbias_pval,
     used_ar_ci = used_ar_ci,
     ar_ci_available = ar_ci_available,
 
@@ -428,6 +430,8 @@ method.MAIVE <- function(method_name, data, settings = NULL) {
 
 
 #' @title MAIVE Method Settings
+#'
+#' @author Petr Čala \email{cala.p@@seznam.cz}
 #'
 #' @description
 #' Defines available configurations for the MAIVE method. Each configuration
@@ -577,6 +581,8 @@ method_settings.MAIVE <- function(method_name) {
 
 #' @title MAIVE Extra Output Columns
 #'
+#' @author Petr Čala \email{cala.p@@seznam.cz}
+#'
 #' @description
 #' Declares additional output columns beyond the standard 9 required columns
 #' that are returned by the MAIVE method.
@@ -592,7 +598,7 @@ method_settings.MAIVE <- function(method_name) {
 #'     High values (>10) indicate strong instruments. NA when instrument=0.}
 #'   \item{hausman_stat}{Hausman test statistic comparing IV vs OLS estimates.
 #'     Large values suggest endogeneity (need for IV). Based on difference-in-estimators.}
-#'   \item{pbias_pval}{P-value for publication bias test using instrumented
+#'   \item{bias_p_value}{P-value for publication bias test using instrumented
 #'     precision-effect relationship (FAT test). Low values indicate bias.}
 #'   \item{used_ar_ci}{Logical indicator of whether Anderson-Rubin confidence
 #'     interval was used (TRUE) or standard Wald CI (FALSE).}
@@ -605,7 +611,7 @@ method_extra_columns.MAIVE <- function(method_name) {
   c(
     "first_stage_f",      # First-stage F-test for instrument strength
     "hausman_stat",       # Hausman test: IV vs OLS comparison
-    "pbias_pval",         # Publication bias test p-value
+    "bias_p_value",       # Publication bias test p-value
     "used_ar_ci",         # Logical: whether Anderson-Rubin CI was used
     "ar_ci_available"     # Logical: whether AR CI was computed/available
   )

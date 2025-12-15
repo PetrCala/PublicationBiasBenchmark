@@ -23,11 +23,14 @@ The MAIVE method returns 5 additional diagnostic columns:
 High values (>10) indicate strong instruments. NA when instrument=0.}
 \item{hausman_stat}{Hausman test statistic comparing IV vs OLS estimates.
 Large values suggest endogeneity (need for IV). Based on difference-in-estimators.}
-\item{pbias_pval}{P-value for publication bias test using instrumented
+\item{bias_p_value}{P-value for publication bias test using instrumented
 precision-effect relationship (FAT test). Low values indicate bias.}
 \item{used_ar_ci}{Logical indicator of whether Anderson-Rubin confidence
 interval was used (TRUE) or standard Wald CI (FALSE).}
 \item{ar_ci_available}{Logical indicator of whether AR CI computation
 was attempted and potentially available.}
 }
+}
+\author{
+Petr Čala \email{cala.p@seznam.cz}
 }

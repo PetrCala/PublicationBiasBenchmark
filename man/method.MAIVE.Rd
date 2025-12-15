@@ -27,7 +27,7 @@ Single-row data frame with standardized output columns:
 \item{note}{Error messages if any}
 \item{first_stage_f}{First-stage F-statistic for instrument strength}
 \item{hausman_stat}{Hausman test statistic comparing IV vs OLS}
-\item{pbias_pval}{P-value for publication bias test}
+\item{bias_p_value}{P-value for publication bias test}
 \item{used_ar_ci}{Whether Anderson-Rubin CI was used}
 \item{ar_ci_available}{Whether AR CI was computed successfully}
 }
@@ -99,4 +99,7 @@ method_settings("MAIVE")
 }
 \seealso{
 \code{\link[=run_method]{run_method()}}, \code{\link[=method_settings]{method_settings()}}, \code{\link[=method_extra_columns]{method_extra_columns()}}
+}
+\author{
+Petr Čala \email{cala.p@seznam.cz}
 }

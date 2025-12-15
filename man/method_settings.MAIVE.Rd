@@ -44,3 +44,6 @@ Available configurations:
 All configurations use SE=0 (CR0/Huber-White) for computational speed
 in benchmarking. Settings are immutable once published for reproducibility.
 }
+\author{
+Petr Čala \email{cala.p@seznam.cz}
+}
