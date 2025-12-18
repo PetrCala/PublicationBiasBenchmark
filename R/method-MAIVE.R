@@ -1,6 +1,6 @@
 #' @title MAIVE: Meta-Analysis Instrumental Variable Estimator
 #'
-#' @author Petr Čala \email{cala.p@@seznam.cz}
+#' @author Petr Cala \email{cala.p@@seznam.cz}
 #'
 #' @description
 #' Implements the MAIVE method for publication bias correction using
@@ -92,7 +92,6 @@
 #'
 #' @export
 method.MAIVE <- function(method_name, data, settings) {
-
   # ============================================================================
   # SECTION 1: INPUT EXTRACTION AND VALIDATION
   # ============================================================================
@@ -110,26 +109,30 @@ method.MAIVE <- function(method_name, data, settings) {
   # Check for required columns first (before checking content)
   if (is.null(yi) || length(yi) == 0) {
     stop("Effect sizes (yi) are required for MAIVE. ",
-         "The data must include a 'yi' column with effect size estimates.",
-         call. = FALSE)
+      "The data must include a 'yi' column with effect size estimates.",
+      call. = FALSE
+    )
   }
 
   if (is.null(sei) || length(sei) == 0) {
     stop("Standard errors (sei) are required for MAIVE. ",
-         "The data must include a 'sei' column with standard errors.",
-         call. = FALSE)
+      "The data must include a 'sei' column with standard errors.",
+      call. = FALSE
+    )
   }
 
   if (is.null(ni) || length(ni) == 0) {
     stop("Sample sizes (ni) are required for MAIVE. ",
-         "The data must include a 'ni' column with positive sample sizes. ",
-         "MAIVE uses inverse sample sizes (1/N) as instruments for variance.",
-         call. = FALSE)
+      "The data must include a 'ni' column with positive sample sizes. ",
+      "MAIVE uses inverse sample sizes (1/N) as instruments for variance.",
+      call. = FALSE
+    )
   }
 
   if (length(yi) < 3) {
     stop("MAIVE requires at least 3 effect size estimates for reliable estimation",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
 
   if (any(is.na(yi))) {
@@ -162,9 +165,9 @@ method.MAIVE <- function(method_name, data, settings) {
   # MAIVE expects:            bs, sebs, Ns, study_id
 
   maive_data <- data.frame(
-    bs = yi,        # Effect sizes
-    sebs = sei,     # Standard errors
-    Ns = ni         # Sample sizes
+    bs = yi, # Effect sizes
+    sebs = sei, # Standard errors
+    Ns = ni # Sample sizes
   )
 
   # Add study_id if provided (needed for clustering)
@@ -185,34 +188,79 @@ method.MAIVE <- function(method_name, data, settings) {
   maive_method <- settings$method %||% 3
   maive_weight <- settings$weight %||% 0
   maive_instrument <- settings$instrument %||% 1
-  maive_studylevel <- settings$studylevel %||% 2
+  maive_studylevel <- settings$studylevel %||% 0
   maive_SE <- settings$SE %||% 0
   maive_AR <- settings$AR %||% 1
   maive_first_stage <- settings$first_stage %||% 0
 
-  # Auto-adjust studylevel if no study_id provided
-  # This prevents errors when clustering is requested but no cluster variable exists
+  # Collect any automatic adjustments for the note field
+  adjustment_notes <- character(0)
+
+  # --- studylevel auto-selection / downgrades --------------------------------
+  # If study_id is missing, clustering/fixed effects are impossible.
   if (is.null(study_id) && maive_studylevel > 0) {
     maive_studylevel <- 0
-    adjustment_note <- "studylevel auto-adjusted to 0 (no clustering) due to missing study_id"
-  } else {
-    adjustment_note <- NULL
+    adjustment_notes <- c(adjustment_notes, "studylevel auto-adjusted to 0 (no study_id)")
+  }
+
+  # If studylevel is left at 0 but we have repeated study_id values, clustering
+  # is typically sensible (e.g., PRE DGMs with multiple estimates per study).
+  if (!is.null(study_id) && maive_studylevel == 0) {
+    n_clusters <- length(unique(study_id))
+    if (n_clusters < length(study_id)) {
+      maive_studylevel <- 2
+      adjustment_notes <- c(adjustment_notes, "studylevel auto-adjusted to 2 (cluster) due to repeated study_id")
+    }
+  }
+
+  # If clustering is requested but there is only one cluster, clubSandwich will
+  # fail (and clustering is not meaningful anyway). Drop cluster component.
+  if (!is.null(study_id) && maive_studylevel %/% 2 == 1) {
+    n_clusters <- length(unique(study_id))
+    if (n_clusters < 2) {
+      dummy_component <- maive_studylevel %% 2
+      maive_studylevel <- dummy_component
+      adjustment_notes <- c(adjustment_notes, "cluster component dropped (only 1 cluster in study_id)")
+    }
+  }
+
+  # --- instrumentation feasibility checks ------------------------------------
+  # MAIVE instruments SE^2 with 1/N. If N does not vary, the instrument has no
+  # variation and IV is not identified; older MAIVE versions can crash in this
+  # situation (aliased slopes -> vcov indexing errors).
+  if (maive_instrument == 1) {
+    n_unique_n <- length(unique(ni))
+    if (n_unique_n < 2) {
+      maive_instrument <- 0
+      maive_AR <- 0
+      adjustment_notes <- c(adjustment_notes, "instrument auto-adjusted to 0 (ni has no variation); AR disabled")
+    }
+  }
+
+  # AR intervals are expensive and sometimes unavailable; disable automatically
+  # for large samples to avoid memory/time issues.
+  if (maive_AR == 1 && length(yi) > 5000) {
+    maive_AR <- 0
+    adjustment_notes <- c(adjustment_notes, "AR disabled automatically for n > 5000")
   }
 
   # Validate settings ranges
   if (!maive_method %in% 1:4) {
     stop("Invalid method parameter: must be 1 (PET), 2 (PEESE), 3 (PET-PEESE), or 4 (EK)",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
 
   if (!maive_weight %in% 0:2) {
     stop("Invalid weight parameter: must be 0 (none), 1 (inverse-variance), or 2 (MAIVE-adjusted)",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
 
   if (!maive_instrument %in% 0:1) {
     stop("Invalid instrument parameter: must be 0 (no IV) or 1 (use IV)",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
 
 
@@ -235,49 +283,69 @@ method.MAIVE <- function(method_name, data, settings) {
   )
 
   # Call the appropriate MAIVE function
-  maive_result <- tryCatch({
-    if (use_waive) {
-      # Call WAIVE (weighted adjusted IV estimator)
-      MAIVE::waive(
-        dat = maive_data,
-        method = maive_method,
-        weight = maive_weight,
-        instrument = maive_instrument,
-        studylevel = maive_studylevel,
-        SE = maive_SE,
-        AR = maive_AR,
-        first_stage = maive_first_stage
+  maive_result <- tryCatch(
+    {
+      if (use_waive) {
+        # Call WAIVE (weighted adjusted IV estimator)
+        MAIVE::waive(
+          dat = maive_data,
+          method = maive_method,
+          weight = maive_weight,
+          instrument = maive_instrument,
+          studylevel = maive_studylevel,
+          SE = maive_SE,
+          AR = maive_AR,
+          first_stage = maive_first_stage
+        )
+      } else {
+        # Call standard MAIVE
+        MAIVE::maive(
+          dat = maive_data,
+          method = maive_method,
+          weight = maive_weight,
+          instrument = maive_instrument,
+          studylevel = maive_studylevel,
+          SE = maive_SE,
+          AR = maive_AR,
+          first_stage = maive_first_stage
+        )
+      }
+    },
+    error = function(e) {
+      # Return a standardized non-converged row instead of stopping; this keeps
+      # run_method(..., silent=FALSE) from printing noisy errors while still
+      # recording what happened.
+      error_msg <- paste0(
+        "MAIVE execution failed: ", conditionMessage(e),
+        "\nContext: n=", error_context$n_studies,
+        ", method=", error_context$method,
+        ", weight=", error_context$weight,
+        ", instrument=", error_context$instrument,
+        ", studylevel=", error_context$studylevel,
+        ", SE=", error_context$SE,
+        ", AR=", error_context$AR,
+        ", first_stage=", error_context$first_stage,
+        ", use_waive=", error_context$use_waive
       )
-    } else {
-      # Call standard MAIVE
-      MAIVE::maive(
-        dat = maive_data,
-        method = maive_method,
-        weight = maive_weight,
-        instrument = maive_instrument,
-        studylevel = maive_studylevel,
-        SE = maive_SE,
-        AR = maive_AR,
-        first_stage = maive_first_stage
+
+      if (length(adjustment_notes) > 0) {
+        error_msg <- paste0("Auto-adjustments: ", paste(adjustment_notes, collapse = "; "), "\n", error_msg)
+      }
+
+      return(
+        create_empty_result(
+          method_name = method_name,
+          note = error_msg,
+          extra_columns = method_extra_columns.MAIVE(method_name)
+        )
       )
     }
-  }, error = function(e) {
-    # Detailed error message with context
-    error_msg <- paste0(
-      "MAIVE execution failed: ", conditionMessage(e),
-      "\nContext: n=", error_context$n_studies,
-      ", method=", error_context$method,
-      ", weight=", error_context$weight,
-      ", instrument=", error_context$instrument,
-      ", studylevel=", error_context$studylevel,
-      ", SE=", error_context$SE,
-      ", AR=", error_context$AR,
-      ", first_stage=", error_context$first_stage,
-      ", use_waive=", error_context$use_waive,
-      "\nOriginal error: ", as.character(e)
-    )
-    stop(error_msg, call. = FALSE)
-  })
+  )
+
+  # If the tryCatch returned an empty-result data frame, pass it through.
+  if (is.data.frame(maive_result) && isTRUE(maive_result$convergence[1] == FALSE)) {
+    return(maive_result)
+  }
 
 
   # ============================================================================
@@ -313,11 +381,11 @@ method.MAIVE <- function(method_name, data, settings) {
 
   # Robust checking for valid AR CI
   is_valid_ar_ci <- !is.null(ar_ci) &&
-                    is.numeric(ar_ci) &&
-                    length(ar_ci) == 2 &&
-                    !anyNA(ar_ci) &&
-                    is.finite(ar_ci[1]) &&
-                    is.finite(ar_ci[2])
+    is.numeric(ar_ci) &&
+    length(ar_ci) == 2 &&
+    !anyNA(ar_ci) &&
+    is.finite(ar_ci[1]) &&
+    is.finite(ar_ci[2])
 
   if (is_valid_ar_ci) {
     # Use Anderson-Rubin CI
@@ -333,8 +401,8 @@ method.MAIVE <- function(method_name, data, settings) {
 
     # Check if AR CI was attempted but failed
     ar_ci_available <- !is.null(ar_ci) &&
-                       (is.character(ar_ci) ||
-                        (is.numeric(ar_ci) && anyNA(ar_ci)))
+      (is.character(ar_ci) ||
+        (is.numeric(ar_ci) && anyNA(ar_ci)))
   }
 
 
@@ -369,7 +437,7 @@ method.MAIVE <- function(method_name, data, settings) {
   }
 
   # Publication bias p-value
-  pbias_pval <- maive_result$pbias_pval
+  pbias_pval <- maive_result$pbias_pval %||% maive_result[["pub bias p-value"]]
   if (is.null(pbias_pval)) {
     pbias_pval <- NA_real_
   }
@@ -380,11 +448,7 @@ method.MAIVE <- function(method_name, data, settings) {
   # ============================================================================
 
   # Combine any adjustment notes
-  note_parts <- character(0)
-
-  if (!is.null(adjustment_note)) {
-    note_parts <- c(note_parts, adjustment_note)
-  }
+  note_parts <- adjustment_notes
 
   if (used_ar_ci) {
     note_parts <- c(note_parts, "Using Anderson-Rubin CI")
@@ -411,7 +475,7 @@ method.MAIVE <- function(method_name, data, settings) {
     ci_lower = ci_lower,
     ci_upper = ci_upper,
     p_value = p_value,
-    BF = NA_real_,  # MAIVE does not compute Bayes factors
+    BF = NA_real_, # MAIVE does not compute Bayes factors
     convergence = TRUE,
     note = note,
 
@@ -421,7 +485,6 @@ method.MAIVE <- function(method_name, data, settings) {
     bias_p_value = pbias_pval,
     used_ar_ci = used_ar_ci,
     ar_ci_available = ar_ci_available,
-
     stringsAsFactors = FALSE
   )
 
@@ -431,7 +494,7 @@ method.MAIVE <- function(method_name, data, settings) {
 
 #' @title MAIVE Method Settings
 #'
-#' @author Petr Čala \email{cala.p@@seznam.cz}
+#' @author Petr Cala \email{cala.p@@seznam.cz}
 #'
 #' @description
 #' Defines available configurations for the MAIVE method. Each configuration
@@ -471,26 +534,23 @@ method.MAIVE <- function(method_name, data, settings) {
 #'
 #' @export
 method_settings.MAIVE <- function(method_name) {
-
   settings <- list(
 
     # -------------------------------------------------------------------------
     # GROUP A: CORE MAIVE METHODS (IV with different estimators)
     # -------------------------------------------------------------------------
-
     "default" = list(
-      method = 3,         # PET-PEESE conditional selection
-      weight = 0,         # No weighting (unweighted)
-      instrument = 1,     # Use variance instrumentation
-      studylevel = 2,     # Cluster-robust standard errors
-      SE = 0,             # CR0 (Huber-White) - fastest
-      AR = 1,             # Compute Anderson-Rubin CI
-      first_stage = 0,    # Levels specification (linear)
-      use_waive = FALSE   # Use maive() not waive()
+      method = 3, # PET-PEESE conditional selection
+      weight = 0, # No weighting (unweighted)
+      instrument = 1, # Use variance instrumentation
+      studylevel = 2, # Cluster-robust standard errors
+      SE = 0, # CR0 (Huber-White) - fastest
+      AR = 1, # Compute Anderson-Rubin CI
+      first_stage = 0, # Levels specification (linear)
+      use_waive = FALSE # Use maive() not waive()
     ),
-
     "PET" = list(
-      method = 1,         # Linear PET only
+      method = 1, # Linear PET only
       weight = 0,
       instrument = 1,
       studylevel = 2,
@@ -499,9 +559,8 @@ method_settings.MAIVE <- function(method_name) {
       first_stage = 0,
       use_waive = FALSE
     ),
-
     "PEESE" = list(
-      method = 2,         # Quadratic PEESE only
+      method = 2, # Quadratic PEESE only
       weight = 0,
       instrument = 1,
       studylevel = 2,
@@ -510,14 +569,13 @@ method_settings.MAIVE <- function(method_name) {
       first_stage = 0,
       use_waive = FALSE
     ),
-
     "EK" = list(
-      method = 4,         # Endogenous Kink model
+      method = 4, # Endogenous Kink model
       weight = 0,
       instrument = 1,
       studylevel = 2,
       SE = 0,
-      AR = 0,             # AR not available for EK
+      AR = 0, # AR not available for EK
       first_stage = 0,
       use_waive = FALSE
     ),
@@ -527,25 +585,24 @@ method_settings.MAIVE <- function(method_name) {
     # -------------------------------------------------------------------------
 
     "weighted" = list(
-      method = 3,         # PET-PEESE
-      weight = 2,         # MAIVE-adjusted inverse-variance weighting
+      method = 3, # PET-PEESE
+      weight = 2, # MAIVE-adjusted inverse-variance weighting
       instrument = 1,
       studylevel = 2,
       SE = 0,
-      AR = 1,             # AR available for weight=2
+      AR = 1, # AR available for weight=2
       first_stage = 0,
       use_waive = FALSE
     ),
-
     "WAIVE" = list(
-      method = 3,         # PET-PEESE
+      method = 3, # PET-PEESE
       weight = 0,
       instrument = 1,
       studylevel = 2,
       SE = 0,
-      AR = 0,             # Typically don't use AR with WAIVE
+      AR = 0, # Typically don't use AR with WAIVE
       first_stage = 0,
-      use_waive = TRUE    # Use waive() function
+      use_waive = TRUE # Use waive() function
     ),
 
     # -------------------------------------------------------------------------
@@ -553,23 +610,22 @@ method_settings.MAIVE <- function(method_name) {
     # -------------------------------------------------------------------------
 
     "log_first_stage" = list(
-      method = 3,         # PET-PEESE
+      method = 3, # PET-PEESE
       weight = 0,
       instrument = 1,
       studylevel = 2,
       SE = 0,
       AR = 1,
-      first_stage = 1,    # Log-linear first stage with smearing
+      first_stage = 1, # Log-linear first stage with smearing
       use_waive = FALSE
     ),
-
     "no_IV" = list(
-      method = 3,         # PET-PEESE
+      method = 3, # PET-PEESE
       weight = 0,
-      instrument = 0,     # No instrumentation (standard estimator)
+      instrument = 0, # No instrumentation (standard estimator)
       studylevel = 2,
       SE = 0,
-      AR = 0,             # AR only for IV estimators
+      AR = 0, # AR only for IV estimators
       first_stage = 0,
       use_waive = FALSE
     )
@@ -581,7 +637,7 @@ method_settings.MAIVE <- function(method_name) {
 
 #' @title MAIVE Extra Output Columns
 #'
-#' @author Petr Čala \email{cala.p@@seznam.cz}
+#' @author Petr Cala \email{cala.p@@seznam.cz}
 #'
 #' @description
 #' Declares additional output columns beyond the standard 9 required columns
@@ -609,10 +665,10 @@ method_settings.MAIVE <- function(method_name) {
 #' @export
 method_extra_columns.MAIVE <- function(method_name) {
   c(
-    "first_stage_f",      # First-stage F-test for instrument strength
-    "hausman_stat",       # Hausman test: IV vs OLS comparison
-    "bias_p_value",       # Publication bias test p-value
-    "used_ar_ci",         # Logical: whether Anderson-Rubin CI was used
-    "ar_ci_available"     # Logical: whether AR CI was computed/available
+    "first_stage_f", # First-stage F-test for instrument strength
+    "hausman_stat", # Hausman test: IV vs OLS comparison
+    "bias_p_value", # Publication bias test p-value
+    "used_ar_ci", # Logical: whether Anderson-Rubin CI was used
+    "ar_ci_available" # Logical: whether AR CI was computed/available
   )
 }
