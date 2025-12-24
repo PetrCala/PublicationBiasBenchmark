@@ -3,7 +3,7 @@
 on:
   push:
     branches: [main, master]
-  pull_request:
+  pull_request_target:
   release:
     types: [published]
   workflow_dispatch:
@@ -26,6 +26,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: r-lib/actions/setup-pandoc@v2
 
@@ -43,7 +45,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Deploy to GitHub pages 🚀
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request_target'
         uses: JamesIves/github-pages-deploy-action@v4.5.0
         with:
           clean: false
